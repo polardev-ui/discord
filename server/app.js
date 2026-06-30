@@ -154,10 +154,10 @@ app.post('/api/links', async (req, res) => {
   const finalUrl = `https://discord.gg/${inviteCode}`
 
   try {
-    const link = createLink(vanity.toLowerCase(), finalUrl, guild_id, userGuild.name, guildIcon, req.session.user.id)
+    const link = await createLink(vanity.toLowerCase(), finalUrl, guild_id, userGuild.name, guildIcon, req.session.user.id)
     res.status(201).json(link)
   } catch (err) {
-    if (err.message.includes('UNIQUE constraint')) {
+    if (err.message.includes('UNIQUE constraint') || err.originalCode === '23505') {
       return res.status(409).json({ error: 'This vanity name is already taken' })
     }
     console.error('Create error:', err)
@@ -165,32 +165,45 @@ app.post('/api/links', async (req, res) => {
   }
 })
 
-app.get('/api/links', (req, res) => {
+app.get('/api/links', async (req, res) => {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated' })
-  res.json(getLinksByUser(req.session.user.id))
+  try {
+    const links = await getLinksByUser(req.session.user.id)
+    res.json(links)
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch links' })
+  }
 })
 
-app.delete('/api/links/:id', (req, res) => {
+app.delete('/api/links/:id', async (req, res) => {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated' })
-  const link = getLinkById(Number(req.params.id))
-  if (!link) return res.status(404).json({ error: 'Not found' })
-  if (link.created_by !== req.session.user.id) {
-    return res.status(403).json({ error: 'Not yours to delete' })
+  try {
+    const link = await getLinkById(Number(req.params.id))
+    if (!link) return res.status(404).json({ error: 'Not found' })
+    if (link.created_by !== req.session.user.id) {
+      return res.status(403).json({ error: 'Not yours to delete' })
+    }
+    await deleteLink(link.id)
+    res.json({ ok: true })
+  } catch {
+    res.status(500).json({ error: 'Failed to delete link' })
   }
-  deleteLink(link.id)
-  res.json({ ok: true })
 })
 
 // ─── Vanity redirect / SPA fallback ────────────────────
 
-app.get('/*', (req, res) => {
+app.get('/*', async (req, res, next) => {
   const pathname = req.path.slice(1)
 
   if (pathname && !pathname.includes('.') && !pathname.startsWith('api/')) {
-    const link = getLinkByVanity(pathname.toLowerCase())
-    if (link) {
-      recordClick(link.id)
-      return res.redirect(301, link.original_url)
+    try {
+      const link = await getLinkByVanity(pathname.toLowerCase())
+      if (link) {
+        await recordClick(link.id)
+        return res.redirect(301, link.original_url)
+      }
+    } catch {
+      // fall through to SPA
     }
   }
 
