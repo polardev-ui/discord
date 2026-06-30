@@ -1,15 +1,22 @@
 {
-  "name": "discord-link-shortener",
+  "name": "disvite",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "npm run dev --prefix server",
-    "dev:client": "npm run dev --prefix client",
-    "build": "npm run build --prefix client",
-    "start": "npm start --prefix server",
-    "setup": "npm install && npm install --prefix client && npm install --prefix server"
+    "dev:server": "node --watch server/dev.js",
+    "dev:client": "vite",
+    "build": "vite build",
+    "start": "node server/dev.js",
+    "setup": "npm install && npm install --prefix server"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^8.2.2",
+    "vite": "^5.4.2"
   }
 }

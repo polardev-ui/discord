@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --watch index.js",
-    "start": "node index.js"
+    "dev": "node --watch dev.js",
+    "start": "node dev.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.3.0",

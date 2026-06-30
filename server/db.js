@@ -3,7 +3,8 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const db = new Database(path.join(__dirname, '..', 'data.db'))
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data.db')
+const db = new Database(DB_PATH)
 
 db.pragma('journal_mode = WAL')
 
@@ -25,44 +26,18 @@ const insert = db.prepare(
   `INSERT INTO links (vanity, original_url, guild_id, guild_name, guild_icon, created_by)
    VALUES (?, ?, ?, ?, ?, ?)`
 )
-
 const findByVanity = db.prepare('SELECT * FROM links WHERE vanity = ?')
-
 const findByUser = db.prepare('SELECT * FROM links WHERE created_by = ? ORDER BY created_at DESC')
-
-const findAll = db.prepare('SELECT * FROM links ORDER BY created_at DESC')
-
 const incrementClicks = db.prepare('UPDATE links SET clicks = clicks + 1 WHERE id = ?')
-
 const remove = db.prepare('DELETE FROM links WHERE id = ?')
-
 const getById = db.prepare('SELECT * FROM links WHERE id = ?')
 
 export function createLink(vanity, originalUrl, guildId, guildName, guildIcon, createdBy) {
   insert.run(vanity, originalUrl, guildId, guildName, guildIcon, createdBy)
   return findByVanity.get(vanity)
 }
-
-export function getLinkByVanity(vanity) {
-  return findByVanity.get(vanity)
-}
-
-export function getLinksByUser(userId) {
-  return findByUser.all(userId)
-}
-
-export function getAllLinks() {
-  return findAll.all()
-}
-
-export function recordClick(id) {
-  incrementClicks.run(id)
-}
-
-export function deleteLink(id) {
-  remove.run(id)
-}
-
-export function getLinkById(id) {
-  return getById.get(id)
-}
+export function getLinkByVanity(vanity) { return findByVanity.get(vanity) }
+export function getLinksByUser(userId) { return findByUser.all(userId) }
+export function recordClick(id) { incrementClicks.run(id) }
+export function deleteLink(id) { remove.run(id) }
+export function getLinkById(id) { return getById.get(id) }
