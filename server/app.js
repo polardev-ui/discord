@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import express from 'express'
-import session from 'express-session'
+import session from 'cookie-session'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import {
@@ -9,7 +9,8 @@ import {
   getCurrentUser,
   getCurrentUserGuilds,
   filterManageableGuilds,
-  getInviteInfo,
+  getGuildChannels,
+  createChannelInvite,
 } from './discord.js'
 import {
   createLink,
@@ -28,15 +29,12 @@ const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || `${APP_URL}/api/auth/ca
 app.set('trust proxy', 1)
 app.use(express.json())
 app.use(session({
+  name: 'disvite_session',
   secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: APP_URL.startsWith('https'),
-    httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  },
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  secure: APP_URL.startsWith('https'),
+  httpOnly: true,
+  sameSite: 'lax',
 }))
 
 function isAuthenticated(req) {
@@ -95,7 +93,8 @@ app.get('/api/auth/me', (req, res) => {
 })
 
 app.post('/api/auth/logout', (req, res) => {
-  req.session.destroy(() => res.json({ ok: true }))
+  req.session = null
+  res.json({ ok: true })
 })
 
 // ─── Guilds ──────────────────────────────────────────────
@@ -117,18 +116,14 @@ app.get('/api/guilds', async (req, res) => {
 app.post('/api/links', async (req, res) => {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated' })
 
-  const { vanity, guild_id, invite_url } = req.body
-  if (!vanity || !guild_id || !invite_url) {
-    return res.status(400).json({ error: 'vanity, guild_id, and invite_url are required' })
+  const { vanity, guild_id } = req.body
+  if (!vanity || !guild_id) {
+    return res.status(400).json({ error: 'vanity and guild_id are required' })
   }
 
   if (!/^[a-zA-Z0-9-]{2,32}$/.test(vanity)) {
     return res.status(400).json({ error: 'Vanity must be 2-32 chars, letters/numbers/hyphens only' })
   }
-
-  const codeMatch = invite_url.match(/discord\.(?:gg|com\/invite)\/([a-zA-Z0-9_-]+)/)
-  if (!codeMatch) return res.status(400).json({ error: 'Invalid Discord invite URL' })
-  const inviteCode = codeMatch[1]
 
   await ensureFreshToken(req)
   const guilds = await getCurrentUserGuilds(req.session.accessToken)
@@ -140,22 +135,31 @@ app.post('/api/links', async (req, res) => {
     return res.status(403).json({ error: 'You need Manage Server permission' })
   }
 
-  const inviteInfo = await getInviteInfo(inviteCode)
-  if (!inviteInfo) return res.status(400).json({ error: 'Invalid or expired invite link' })
+  // Bot creates a never-expiring invite
+  const channels = await getGuildChannels(guild_id)
+  if (!channels) {
+    return res.status(400).json({ error: 'Bot is not in this server or cannot access channels. Invite the bot to the server first.' })
+  }
 
-  if (!inviteInfo.guild?.id || inviteInfo.guild.id !== guild_id) {
-    return res.status(400).json({ error: 'Invite does not belong to the selected server' })
+  const textChannel = channels.find(c => c.type === 0)
+  if (!textChannel) {
+    return res.status(400).json({ error: 'No text channels found in this server' })
+  }
+
+  const invite = await createChannelInvite(textChannel.id)
+  if (!invite || !invite.code) {
+    return res.status(400).json({ error: 'Failed to create invite. Make sure the bot has Create Invite permission.' })
   }
 
   const guildIcon = userGuild.icon
     ? `https://cdn.discordapp.com/icons/${userGuild.id}/${userGuild.icon}.png`
     : null
 
-  const finalUrl = `https://discord.gg/${inviteCode}`
+  const finalUrl = `https://discord.gg/${invite.code}`
 
   try {
     const link = await createLink(vanity.toLowerCase(), finalUrl, guild_id, userGuild.name, guildIcon, req.session.user.id)
-    res.status(201).json(link)
+    res.status(201).json({ ...link, invite_url: finalUrl })
   } catch (err) {
     if (err.message.includes('UNIQUE constraint') || err.originalCode === '23505') {
       return res.status(409).json({ error: 'This vanity name is already taken' })

@@ -3,14 +3,11 @@ import { useAuth } from './AuthContext'
 
 const APP_URL = 'https://discord.wsgpolar.me'
 
-function extractInviteCode(url) {
-  const m = url.match(/discord\.(?:gg|com\/invite)\/([a-zA-Z0-9_-]+)/)
-  return m ? m[1] : null
-}
-
 function isValidVanity(s) {
   return /^[a-zA-Z0-9-]{2,32}$/.test(s)
 }
+
+const hasManagePerms = (g) => (BigInt(g.permissions) & BigInt(0x20)) === BigInt(0x20)
 
 function Toast({ message, type, onClose }) {
   useEffect(() => {
@@ -43,9 +40,7 @@ export default function Dashboard() {
   const [links, setLinks] = useState([])
   const [toast, setToast] = useState(null)
 
-  // Form state
   const [selectedGuild, setSelectedGuild] = useState(null)
-  const [inviteUrl, setInviteUrl] = useState('')
   const [vanity, setVanity] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -74,9 +69,8 @@ export default function Dashboard() {
     load()
   }, [fetchLinks])
 
-  const detectedCode = extractInviteCode(inviteUrl)
   const previewUrl = vanity && isValidVanity(vanity) ? `/${vanity}` : null
-  const canSubmit = selectedGuild && detectedCode && isValidVanity(vanity) && !submitting
+  const canSubmit = selectedGuild && isValidVanity(vanity) && !submitting
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -90,13 +84,11 @@ export default function Dashboard() {
         body: JSON.stringify({
           vanity: vanity.toLowerCase(),
           guild_id: selectedGuild.id,
-          invite_url: inviteUrl,
         }),
       })
       const data = await res.json()
       if (res.ok) {
         showToast(`Created! ${APP_URL}/${vanity.toLowerCase()}`)
-        setInviteUrl('')
         setVanity('')
         setSelectedGuild(null)
         fetchLinks()
@@ -164,7 +156,6 @@ export default function Dashboard() {
                     className={`guild-card ${selectedGuild?.id === g.id ? 'selected' : ''}`}
                     onClick={() => {
                       setSelectedGuild(g)
-                      setInviteUrl('')
                       setVanity('')
                     }}
                   >
@@ -201,19 +192,6 @@ export default function Dashboard() {
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="invite">Discord invite URL</label>
-                    <input
-                      id="invite" type="text"
-                      placeholder="https://discord.gg/example"
-                      value={inviteUrl}
-                      onChange={e => setInviteUrl(e.target.value)}
-                    />
-                    {detectedCode && (
-                      <span className="hint">Invite code: <strong>{detectedCode}</strong></span>
-                    )}
-                  </div>
-
-                  <div className="form-group">
                     <label htmlFor="vanity">Vanity path</label>
                     <div className="input-prefix">
                       <span className="prefix">{APP_URL}/</span>
@@ -229,8 +207,12 @@ export default function Dashboard() {
                     )}
                   </div>
 
+                  <p className="invite-note">
+                    A never-expiring invite will be auto-created for <strong>{selectedGuild.name}</strong>.
+                  </p>
+
                   <button type="submit" className="btn btn-primary" disabled={!canSubmit}>
-                    {submitting ? 'Creating...' : 'Create Vanity'}
+                    {submitting ? 'Creating invite &amp; link...' : 'Create Vanity'}
                   </button>
                 </form>
               )}

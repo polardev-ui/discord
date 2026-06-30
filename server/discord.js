@@ -78,3 +78,25 @@ export async function getInviteInfo(code) {
   if (!res.ok) return null
   return res.json()
 }
+
+export async function getGuildChannels(guildId) {
+  const res = await fetch(`${API_BASE}/guilds/${guildId}/channels`, {
+    headers: botHeaders(),
+  })
+  if (!res.ok) return null
+  return res.json()
+}
+
+export async function createChannelInvite(channelId) {
+  const res = await fetch(`${API_BASE}/channels/${channelId}/invites`, {
+    method: 'POST',
+    headers: botHeaders(),
+    body: JSON.stringify({
+      max_age: 0,
+      max_uses: 0,
+      unique: true,
+    }),
+  })
+  if (!res.ok) return null
+  return res.json()
+}
