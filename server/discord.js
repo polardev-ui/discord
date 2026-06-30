@@ -87,6 +87,21 @@ export async function getGuildChannels(guildId) {
   return res.json()
 }
 
+export async function isBotInGuild(guildId) {
+  const res = await fetch(`${API_BASE}/guilds/${guildId}`, {
+    headers: botHeaders(),
+  })
+  return res.ok
+}
+
+export function getBotInviteUrl() {
+  const url = new URL('https://discord.com/api/oauth2/authorize')
+  url.searchParams.set('client_id', process.env.DISCORD_CLIENT_ID)
+  url.searchParams.set('permissions', '1025') // Create Instant Invite + View Channels
+  url.searchParams.set('scope', 'bot')
+  return url.toString()
+}
+
 export async function createChannelInvite(channelId) {
   const res = await fetch(`${API_BASE}/channels/${channelId}/invites`, {
     method: 'POST',

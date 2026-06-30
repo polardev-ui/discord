@@ -11,6 +11,8 @@ import {
   filterManageableGuilds,
   getGuildChannels,
   createChannelInvite,
+  isBotInGuild,
+  getBotInviteUrl,
 } from './discord.js'
 import {
   createLink,
@@ -109,6 +111,14 @@ app.get('/api/guilds', async (req, res) => {
   const manageable = filterManageableGuilds(guilds)
   manageable.sort((a, b) => a.name.localeCompare(b.name))
   res.json(manageable)
+})
+
+app.get('/api/guilds/:id/bot-status', async (req, res) => {
+  const installed = await isBotInGuild(req.params.id)
+  res.json({
+    installed,
+    invite_url: getBotInviteUrl(),
+  })
 })
 
 // ─── Links API ──────────────────────────────────────────

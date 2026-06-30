@@ -227,6 +227,37 @@
   color: var(--text-secondary);
 }
 
+.bot-badge {
+  font-size: .7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--accent-green);
+  background: rgba(35, 165, 90, .12);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.bot-invite-prompt {
+  text-align: center;
+  padding: 8px 0;
+}
+.bot-missing-text {
+  color: var(--text-secondary);
+  font-size: .9rem;
+  line-height: 1.5;
+  margin-bottom: 20px;
+  padding: 0 8px;
+}
+.bot-missing-text strong {
+  color: var(--text-primary);
+}
+.bot-invite-hint {
+  color: var(--text-muted);
+  font-size: .8rem;
+  margin-top: 14px;
+}
+
 .selected-guild-badge {
   display: inline-flex; align-items: center; gap: 8px;
   background: var(--bg-primary); padding: 8px 14px;
